@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Super Bug Zapper</title>
+
+<script src="webgl-utils.js"></script>
+<script src="initShaders.js"></script>
+<script src="MV.js"></script>
+
+<script id="vertex-shader" type="x-shader/x-vertex">
+attribute vec4 vPosition;
+attribute vec4 vColor;
+
+varying vec4 fColor;
+
+uniform mat4 uMatrix;
+
+void main() {
+    gl_Position = uMatrix * vPosition;
+    fColor = vColor;
+}
+</script>
+
+<script id="fragment-shader" type="x-shader/x-fragment">
+precision mediump float;
+
+varying vec4 fColor;
+
+void main() {
+    gl_FragColor = fColor;
+}
+</script>
+
+<script src="bug.js"></script>
+
+<style>
+body {
+    font-family: Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 10px;
+}
+
+#hud {
+    margin-bottom: 6px;
+    font-size: 14px;
+    display: flex;
+    gap: 24px;
+}
+
+#controls {
+    margin-bottom: 6px;
+}
+
+#message {
+    height: 20px;
+    font-size: 13px;
+    color: red;
+    margin-bottom: 4px;
+}
+</style>
+</head>
+
+<body onload="init()">
+
+<h2>Super Bug Zapper – Assignment 4</h2>
+
+<div id="hud">
+    <span>Bacteria: <strong id="ui-count">0</strong></span>
+    <span>Critical: <strong id="ui-danger">0</strong></span>
+    <span>Score: <strong id="ui-score">0</strong></span>
+    <span>Time: <strong id="ui-time">0s</strong></span>
+</div>
+
+<div id="controls">
+    <button id="btn-zap">Zap (or click / Space)</button>
+</div>
+
+<div id="message"></div>
+
+<canvas id="gl-canvas" width="600" height="600">
+    Your browser doesn't support HTML5 canvas
+</canvas>
+
+</body>
+</html>
