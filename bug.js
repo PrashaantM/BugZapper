@@ -44,6 +44,23 @@ var currentHover      = -1;
 var msgTimer          = null;
 var thresholdReached  = 0;
 
+var WAVE_SIZE              = 10;
+var TOTAL_WAVES            = 5;
+var WAVE_GROWTH_MULTIPLIER = [1,   1,   1.5, 1.5, 2  ]; // indexed by wave-1
+var WAVE_SPAWN_MIN         = [1,   2,   1,   2,   2  ];
+var WAVE_SPAWN_MAX         = [1,   3,   1,   3,   3  ];
+var currentWave            = 1;
+
+function waveForKills(kills) {
+    return Math.min(TOTAL_WAVES, Math.floor(kills / WAVE_SIZE) + 1);
+}
+
+function spawnCountForWave(wave) {
+    var min = WAVE_SPAWN_MIN[wave - 1];
+    var max = WAVE_SPAWN_MAX[wave - 1];
+    return min + Math.floor(Math.random() * (max - min + 1));
+}
+
 function buildSphere() {
     var points   = [];
     var colors   = [];
@@ -205,14 +222,21 @@ function uploadAndDraw() {
     }
 }
 
+// Mirrors the gl.clearColor() call in init() so picking can recognize background pixels.
+var CLEAR_COLOR_RGB = [
+    Math.round(0.05 * 255),
+    Math.round(0.05 * 255),
+    Math.round(0.10 * 255)
+];
+
 function pickBacteriumAtPixel(mx, my) {
     var pixels = new Uint8Array(4);
     gl.readPixels(mx, gl.canvas.height - my, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
     var r = pixels[0], g = pixels[1], b = pixels[2];
 
-    if (r < 20 && g < 20 && b < 20)                                     return -1;
-    if (Math.abs(r-128)<40 && Math.abs(g-133)<40 && Math.abs(b-138)<40) return -1;
-    if (r > 180 && g > 180 && b > 180)                                   return -1;
+    if (Math.abs(r-CLEAR_COLOR_RGB[0])<20 && Math.abs(g-CLEAR_COLOR_RGB[1])<20 && Math.abs(b-CLEAR_COLOR_RGB[2])<20) return -1;
+    if (Math.abs(r-128)<40 && Math.abs(g-133)<40 && Math.abs(b-138)<40)                                             return -1;
+    if (r > 180 && g > 180 && b > 180)                                                                              return -1;
 
     var best     = -1;
     var bestDist = 60 * 60 * 3;
@@ -267,11 +291,12 @@ function zapAction() {
         bacteria.splice(currentHover, 1);
         currentHover = -1;
         totalKilled++;
-        showMessage("Bacteria " + (killed.id + 1) + " eliminated! (" + totalKilled + "/" + TARGET_KILLS + ")");
+        currentWave = waveForKills(totalKilled);
+        showMessage("Bacteria " + (killed.id + 1) + " eliminated! (" + totalKilled + "/" + TARGET_KILLS + ")", "success");
         updateUI();
         checkWin();
     } else {
-        showMessage("Miss! Place mouse over a bacterium first.");
+        showMessage("Miss! Place mouse over a bacterium first.", "warning");
     }
 }
 
@@ -281,11 +306,14 @@ function updateGame(dt) {
     elapsed        += dt;
     autoSpawnTimer += dt;
 
+    currentWave = waveForKills(totalKilled);
+    growRate    = BASE_GROW_RATE * WAVE_GROWTH_MULTIPLIER[currentWave - 1];
+
     if (autoSpawnTimer >= autoSpawnInterval) {
-        spawnBacterium();
+        var spawnCount = spawnCountForWave(currentWave);
+        for (var s = 0; s < spawnCount; s++) spawnBacterium();
         autoSpawnTimer    = 0;
         autoSpawnInterval = Math.max(2.0, autoSpawnInterval * 0.92);
-        growRate          = BASE_GROW_RATE + (elapsed / 30.0);
     }
 
     for (var i = 0; i < bacteria.length; i++) {
@@ -298,7 +326,7 @@ function updateGame(dt) {
             b.overThreshold = true;
             thresholdReached++;
             score += 200;
-            showMessage("WARNING: Bacteria " + (b.id + 1) + " reached critical size!");
+            showMessage("WARNING: Bacteria " + (b.id + 1) + " reached critical size!", "danger");
 
             if (thresholdReached >= 2) {
                 endGame(false);
@@ -329,11 +357,12 @@ function startGame() {
     autoSpawnTimer    = 0;
     autoSpawnInterval = 5.0;
     thresholdReached  = 0;
+    currentWave       = 1;
     growRate          = BASE_GROW_RATE;
     gameOver          = false;
     gameRunning       = true;
     lastTimestamp     = performance.now();
-    showMessage("Hover over bacteria and click Zap to eliminate them!");
+    showMessage("Hover over bacteria and click Zap to eliminate them!", "info");
     spawnBacterium();
     spawnBacterium();
     updateUI();
@@ -343,26 +372,33 @@ function endGame(win) {
     gameOver    = true;
     gameRunning = false;
     if (win) {
-        showMessage("YOU WIN! All bacteria eliminated. Final score: " + Math.floor(score) + " (lower is better). Refresh to play again.");
+        showMessage("YOU WIN! All bacteria eliminated. Final score: " + Math.floor(score) + " (lower is better). Refresh to play again.", "success");
     } else {
-        showMessage("GAME OVER! Two bacteria reached 30 degrees. Score: " + Math.floor(score) + ". Refresh to play again.");
+        showMessage("GAME OVER! Two bacteria reached 30 degrees. Score: " + Math.floor(score) + ". Refresh to play again.", "danger");
     }
     updateUI();
 }
 
 function updateUI() {
     document.getElementById("ui-count").textContent  = bacteria.length;
+    document.getElementById("ui-wave").textContent   = currentWave + "/" + TOTAL_WAVES;
     document.getElementById("ui-danger").textContent = thresholdReached;
     document.getElementById("ui-score").textContent  = Math.floor(score);
     document.getElementById("ui-time").textContent   = Math.floor(elapsed) + "s";
+
+    var waveClass = "wave-" + currentWave;
+    if (document.body.className !== waveClass) {
+        document.body.className = waveClass;
+    }
 }
 
-function showMessage(txt) {
+function showMessage(txt, type) {
     var el = document.getElementById("message");
     if (!el) return;
     el.textContent = txt;
+    el.className = type ? "msg-" + type : "";
     if (msgTimer) clearTimeout(msgTimer);
-    if (txt !== "") msgTimer = setTimeout(function(){ el.textContent = ""; }, 3500);
+    if (txt !== "") msgTimer = setTimeout(function(){ el.textContent = ""; el.className = ""; }, 3500);
 }
 
 function init() {

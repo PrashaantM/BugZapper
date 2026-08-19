@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html>
 <head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Super Bug Zapper</title>
 
 <script src="webgl-utils.js"></script>
@@ -40,14 +42,29 @@ body {
     flex-direction: column;
     align-items: center;
     padding: 10px;
+    background-color: #ffffff;
+    transition: background-color 0.6s ease;
 }
+
+body.wave-3 { background-color: #fdf2f2; }
+body.wave-4 { background-color: #fbdede; }
+body.wave-5 { animation: bg-pulse 1.4s ease-in-out infinite; }
 
 #hud {
     margin-bottom: 6px;
     font-size: 14px;
     display: flex;
     gap: 24px;
+    padding: 4px 12px;
+    border-radius: 4px;
+    border: 2px solid transparent;
+    transition: border-color 0.4s ease, box-shadow 0.4s ease, font-size 0.4s ease;
 }
+
+body.wave-2 #hud { border-color: rgba(231, 76, 60, 0.4); }
+body.wave-3 #hud { border-color: #e74c3c; }
+body.wave-4 #hud { border-color: #ff2222; box-shadow: 0 0 10px rgba(255, 0, 0, 0.4); font-size: 15px; }
+body.wave-5 #hud { border-color: #ff0000; font-size: 16px; animation: hud-pulse 0.9s ease-in-out infinite; }
 
 #controls {
     margin-bottom: 6px;
@@ -56,18 +73,68 @@ body {
 #message {
     height: 20px;
     font-size: 13px;
-    color: red;
     margin-bottom: 4px;
+    color: #555;
+    transition: font-size 0.3s ease;
+}
+
+#message.msg-success { color: #2e8b57; }
+#message.msg-warning { color: #cc8400; }
+#message.msg-danger  { color: #c0392b; }
+
+body.wave-4 #message.msg-danger,
+body.wave-5 #message.msg-danger {
+    font-weight: bold;
+    animation: msg-pulse 0.8s ease-in-out infinite;
+}
+
+body.wave-5 #message { font-size: 15px; }
+
+#ui-danger {
+    transition: color 0.3s ease, font-size 0.3s ease;
+}
+
+body.wave-3 #ui-danger, body.wave-4 #ui-danger, body.wave-5 #ui-danger { color: #c0392b; }
+body.wave-4 #ui-danger, body.wave-5 #ui-danger { font-size: 1.3em; }
+body.wave-5 #ui-danger { animation: text-pulse 0.8s ease-in-out infinite; }
+
+#gl-canvas {
+    border: 2px solid transparent;
+    transition: border-color 0.5s ease, box-shadow 0.5s ease;
+}
+
+body.wave-4 #gl-canvas { border-color: #ff2222; }
+body.wave-5 #gl-canvas { border-color: #ff0000; box-shadow: 0 0 22px rgba(255, 0, 0, 0.5); }
+
+@keyframes bg-pulse {
+    0%, 100% { background-color: #f8caca; }
+    50%      { background-color: #f3a5a5; }
+}
+
+@keyframes hud-pulse {
+    0%, 100% { box-shadow: 0 0 12px rgba(255, 0, 0, 0.5); }
+    50%      { box-shadow: 0 0 26px rgba(255, 0, 0, 0.9); }
+}
+
+@keyframes msg-pulse {
+    0%, 100% { color: #c0392b; text-shadow: none; }
+    50%      { color: #ff0000; text-shadow: 0 0 6px rgba(255, 0, 0, 0.5); }
+}
+
+@keyframes text-pulse {
+    0%, 100% { color: #ff0000; }
+    50%      { color: #ff5555; }
 }
 </style>
 </head>
 
 <body onload="init()">
 
-<h2>Super Bug Zapper – Assignment 4</h2>
+<h2>Super Bug Zapper</h2>
 
 <div id="hud">
     <span>Bacteria: <strong id="ui-count">0</strong></span>
+    <span>Wave: <strong id="ui-wave">1/5</strong></span>
     <span>Critical: <strong id="ui-danger">0</strong></span>
     <span>Score: <strong id="ui-score">0</strong></span>
     <span>Time: <strong id="ui-time">0s</strong></span>
