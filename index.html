@@ -1,3 +1,15 @@
+<!--
+  index.html: entry point and page shell for the Super Bug Zapper WebGL game.
+
+  Loads the helper libraries in dependency order (webgl-utils.js for context
+  setup, initShaders.js to compile/link the shaders below, MV.js for
+  vector/matrix math), embeds the GLSL vertex/fragment shader source as
+  inline <script> blocks (read by initShaders() in bug.js via getElementById),
+  then loads bug.js which contains all the game logic and starts itself via
+  the body's onload="init()" handler. The <style> block below drives purely
+  cosmetic "danger" feedback (background/HUD pulsing) keyed off a
+  `wave-N` class that bug.js sets on <body> as the game's difficulty escalates.
+-->
 <!DOCTYPE html>
 <html>
 <head>
@@ -5,10 +17,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Super Bug Zapper</title>
 
+<!-- WebGL context helper (used indirectly; actual context setup happens in bug.js's init()) -->
 <script src="webgl-utils.js"></script>
+<!-- Compiles/links the shader pair below into a GL program; called by bug.js's init() -->
 <script src="initShaders.js"></script>
+<!-- Vector/matrix math (vec4, mat4, mult, rotateX/Y, flatten, ...) used throughout bug.js -->
 <script src="MV.js"></script>
 
+<!--
+  Vertex shader: transforms each vertex by the uMatrix uniform (the rotation
+  matrix bug.js updates on drag) and passes the per-vertex color through.
+-->
 <script id="vertex-shader" type="x-shader/x-vertex">
 attribute vec4 vPosition;
 attribute vec4 vColor;
@@ -23,6 +42,7 @@ void main() {
 }
 </script>
 
+<!-- Fragment shader: just outputs the interpolated per-vertex color, no lighting. -->
 <script id="fragment-shader" type="x-shader/x-fragment">
 precision mediump float;
 
@@ -33,8 +53,14 @@ void main() {
 }
 </script>
 
+<!-- Game logic: sphere/bacteria geometry, input handling, game state, render loop -->
 <script src="bug.js"></script>
 
+<!--
+  Purely visual: escalates background/HUD/text styling as bug.js sets
+  body.className to "wave-1" .. "wave-5" (see updateUI() in bug.js).
+  No gameplay logic lives here.
+-->
 <style>
 body {
     font-family: Arial, sans-serif;
@@ -128,10 +154,12 @@ body.wave-5 #gl-canvas { border-color: #ff0000; box-shadow: 0 0 22px rgba(255, 0
 </style>
 </head>
 
+<!-- Kicks off the whole game: init() in bug.js sets up WebGL, input handlers, and the render loop. -->
 <body onload="init()">
 
 <h2>Super Bug Zapper</h2>
 
+<!-- Scoreboard; text content of these spans is written by updateUI() in bug.js each frame. -->
 <div id="hud">
     <span>Bacteria: <strong id="ui-count">0</strong></span>
     <span>Wave: <strong id="ui-wave">1/5</strong></span>
@@ -140,12 +168,15 @@ body.wave-5 #gl-canvas { border-color: #ff0000; box-shadow: 0 0 22px rgba(255, 0
     <span>Time: <strong id="ui-time">0s</strong></span>
 </div>
 
+<!-- Alternate way to trigger zapAction() in bug.js, besides clicking the canvas or pressing Space. -->
 <div id="controls">
     <button id="btn-zap">Zap (or click / Space)</button>
 </div>
 
+<!-- Transient status text (kills, warnings, win/lose); populated by showMessage() in bug.js. -->
 <div id="message"></div>
 
+<!-- WebGL drawing surface that bug.js's init() attaches the "webgl" context to. -->
 <canvas id="gl-canvas" width="600" height="600">
     Your browser doesn't support HTML5 canvas
 </canvas>

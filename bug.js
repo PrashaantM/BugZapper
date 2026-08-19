@@ -1,3 +1,28 @@
+// bug.js: all game logic for Super Bug Zapper.
+//
+// Loaded last by index.html, after webgl-utils.js, initShaders.js, and MV.js
+// (which provide the WebGL context helper, shader compilation, and vector
+// /matrix math this file relies on). init() below is invoked by <body
+// onload="init()"> and is the single entry point: it sets up the GL program
+// and buffers, wires up mouse/keyboard input, starts the game, and drives a
+// requestAnimationFrame render loop that rebuilds and redraws the scene each
+// frame and advances game state.
+//
+// The "game" is a rotatable sphere ("petri dish") that bacteria caps grow on
+// over time; the player rotates the view by dragging and eliminates bacteria
+// by hovering over them and zapping (click, Space, or the on-screen button)
+// before any of them reach a critical size. Bacteria under the cursor are
+// identified not via 3D picking but by reading back the pixel color under
+// the mouse (see pickBacteriumAtPixel), matching it against each bacterium's
+// assigned color.
+//
+// Geometry (sphere shell, bacteria caps, decorative surface dots) is rebuilt
+// from scratch into flat point/color arrays every frame in uploadAndDraw()
+// and pushed to the GPU via the position/color buffers created in init().
+// Game-state variables (bacteria, score, currentWave, etc.) are read/written
+// by the functions below and reflected into the DOM by updateUI(), which
+// index.html's #hud/#message elements display.
+
 var gl;
 var program;
 var positionBuffer;
@@ -51,16 +76,25 @@ var WAVE_SPAWN_MIN         = [1,   2,   1,   2,   2  ];
 var WAVE_SPAWN_MAX         = [1,   3,   1,   3,   3  ];
 var currentWave            = 1;
 
+// Derives the current difficulty wave (1..TOTAL_WAVES) from the total kill
+// count. Called by updateGame() and zapAction() to keep currentWave in sync.
 function waveForKills(kills) {
     return Math.min(TOTAL_WAVES, Math.floor(kills / WAVE_SIZE) + 1);
 }
 
+// Picks a random number of bacteria to spawn at once for the given wave,
+// using the per-wave [min,max] ranges in WAVE_SPAWN_MIN/MAX. Called by
+// updateGame() each time the auto-spawn timer fires.
 function spawnCountForWave(wave) {
     var min = WAVE_SPAWN_MIN[wave - 1];
     var max = WAVE_SPAWN_MAX[wave - 1];
     return min + Math.floor(Math.random() * (max - min + 1));
 }
 
+// Builds the grey "petri dish" sphere as a set of triangle-strip latitude
+// bands (points/colors arrays plus a drawList of {start,count} ranges for
+// gl.drawArrays). Called every frame by uploadAndDraw(); does not touch any
+// persistent game state.
 function buildSphere() {
     var points   = [];
     var colors   = [];
@@ -91,6 +125,9 @@ function buildSphere() {
     return { points: points, colors: colors, drawList: drawList };
 }
 
+// Builds the small white decorative dots scattered over the sphere surface
+// (purely cosmetic texture, not gameplay-relevant), each dot as a
+// triangle-fan disc. Called every frame by uploadAndDraw().
 function buildDots() {
     var points      = [];
     var colors      = [];
@@ -135,6 +172,10 @@ function buildDots() {
     return { points: points, colors: colors, drawList: drawList };
 }
 
+// Builds the colored triangle-fan "cap" geometry for one bacterium, sized by
+// its angleDeg (how far it has grown) and centered at its (cx,cy,cz) point
+// on the sphere surface. Called once per bacterium, per frame, from
+// uploadAndDraw(); reads a bacterium's state but does not mutate it.
 function buildBacteriumCap(bact) {
     var points      = [];
     var colors      = [];
@@ -172,6 +213,11 @@ function buildBacteriumCap(bact) {
     return { points: points, colors: colors, count: points.length };
 }
 
+// Rebuilds the full scene geometry for this frame (sphere + one cap per live
+// bacterium + surface dots), concatenates it all into single position/color
+// arrays, uploads them to positionBuffer/colorBuffer, and issues the
+// gl.drawArrays calls. Called once per frame from the render loop in init();
+// this is the only place that actually draws to the canvas.
 function uploadAndDraw() {
     var sphere     = buildSphere();
     var caps       = [];
@@ -229,6 +275,11 @@ var CLEAR_COLOR_RGB = [
     Math.round(0.10 * 255)
 ];
 
+// Color-based hit test: reads the single pixel under the mouse from the
+// already-rendered canvas and matches its RGB against each bacterium's known
+// color to find which one (if any) the cursor is over. Returns the index
+// into bacteria[], or -1 if the pixel is background/sphere/dot. Called from
+// the mousemove handler in init() to update currentHover.
 function pickBacteriumAtPixel(mx, my) {
     var pixels = new Uint8Array(4);
     gl.readPixels(mx, gl.canvas.height - my, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
@@ -250,6 +301,11 @@ function pickBacteriumAtPixel(mx, my) {
     return best;
 }
 
+// Creates and pushes a new bacterium at a random position on the front face
+// of the sphere, picking an unused color from BACTERIA_COLORS (no-op if all
+// colors are taken, the spawn cap is hit, or the kill target is reached).
+// Called from startGame() (initial spawns) and updateGame() (auto-spawn);
+// writes to the bacteria array and totalSpawned counter.
 function spawnBacterium() {
     if (bacteria.length >= MAX_BACTERIA) return;
     if (totalSpawned >= TARGET_KILLS) return;
@@ -283,6 +339,10 @@ function spawnBacterium() {
     totalSpawned++;
 }
 
+// Eliminates the currently-hovered bacterium (if any): removes it from
+// bacteria[], updates kill/wave counters, and checks for a win. Called from
+// the canvas click handler, the Space keydown handler, and the #btn-zap
+// button, all wired up in init().
 function zapAction() {
     if (!gameRunning || gameOver) return;
 
@@ -300,6 +360,11 @@ function zapAction() {
     }
 }
 
+// Advances game state by one frame's delta time dt: grows every bacterium,
+// accrues score, handles auto-spawning on a shrinking interval, flags
+// bacteria that cross the critical-size threshold (ending the game after two
+// such warnings), and checks for a win. Called once per frame from the
+// render loop in init(); this is the main per-frame game-logic update.
 function updateGame(dt) {
     if (!gameRunning || gameOver) return;
 
@@ -341,12 +406,18 @@ function updateGame(dt) {
     updateUI();
 }
 
+// Ends the game in a win if the target kill count is reached and no
+// bacteria remain alive. Called from zapAction() and updateGame() after
+// state that could satisfy the win condition changes.
 function checkWin() {
     if (totalKilled >= TARGET_KILLS && bacteria.length === 0) {
         endGame(true);
     }
 }
 
+// Resets all game-state variables to their initial values and spawns the
+// first two bacteria to begin a run. Called once from init() on page load
+// (there is no in-page restart; the game instructs the player to refresh).
 function startGame() {
     bacteria          = [];
     score             = 0;
@@ -368,6 +439,9 @@ function startGame() {
     updateUI();
 }
 
+// Stops the game loop's active state and shows the final win/lose message.
+// Called from checkWin() (win) and updateGame() (loss, on the second
+// critical-size warning).
 function endGame(win) {
     gameOver    = true;
     gameRunning = false;
@@ -379,6 +453,10 @@ function endGame(win) {
     updateUI();
 }
 
+// Writes current game-state values into the #hud DOM elements defined in
+// index.html, and sets body.className to "wave-N" so the CSS in index.html
+// can escalate its danger styling. Called from zapAction(), updateGame(),
+// startGame(), and endGame() whenever displayed state changes.
 function updateUI() {
     document.getElementById("ui-count").textContent  = bacteria.length;
     document.getElementById("ui-wave").textContent   = currentWave + "/" + TOTAL_WAVES;
@@ -392,6 +470,10 @@ function updateUI() {
     }
 }
 
+// Displays a transient status message in the #message element (index.html),
+// tagged with a CSS class (e.g. "msg-success"/"msg-warning"/"msg-danger")
+// for styling, and clears it after 3.5s. Called from zapAction(),
+// updateGame(), startGame(), and endGame() to report game events.
 function showMessage(txt, type) {
     var el = document.getElementById("message");
     if (!el) return;
@@ -401,6 +483,11 @@ function showMessage(txt, type) {
     if (txt !== "") msgTimer = setTimeout(function(){ el.textContent = ""; el.className = ""; }, 3500);
 }
 
+// Entry point, called by <body onload="init()"> in index.html. Sets up the
+// WebGL context, compiles/links the shader program (via initShaders() from
+// initShaders.js), creates the GPU buffers, wires up mouse-drag rotation,
+// hover picking, zap input (click/Space/button), starts the game via
+// startGame(), and kicks off the requestAnimationFrame render loop.
 function init() {
     var canvas = document.getElementById("gl-canvas");
 
@@ -419,6 +506,8 @@ function init() {
 
     rotationMatrix = mat4();
 
+    // Mouse-drag on the canvas rotates the view (updates rotationMatrix);
+    // when not dragging, mousemove instead updates currentHover for picking.
     canvas.addEventListener("mousedown", function(ev) {
         dragging = true;
         lastX = ev.clientX;
@@ -458,6 +547,9 @@ function init() {
 
     startGame();
 
+    // Per-frame callback registered with requestAnimationFrame: computes a
+    // clamped delta time, clears and redraws the scene via uploadAndDraw(),
+    // advances game logic via updateGame(), then reschedules itself.
     function renderLoop(timestamp) {
         var dt = Math.min((timestamp - lastTimestamp) / 1000, 0.1);
         lastTimestamp = timestamp;

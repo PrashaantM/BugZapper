@@ -1,4 +1,15 @@
 // cuon-utils.js (c) 2012 kanda and matsuda
+//
+// Shared WebGL helper library from the "WebGL Programming Guide" (cuon-x.js)
+// textbook, not authored for this repo. Provides an alternative
+// initShaders()/getWebGLContext() implementation (shader source passed in
+// directly as strings, plus optional debug-context wrapping via
+// WebGLDebugUtils from webgl-debug.js).
+// Not referenced by index.html or bug.js; this file is not currently loaded
+// or used anywhere in the game. The initShaders() actually used by bug.js
+// is the one defined in initShaders.js (which reads shader source from
+// <script> elements by id, not from string arguments), and this file's own
+// initShaders() would in fact be shadowed by that one if both were loaded.
 /**
  * Create a program object and make current
  * @param gl GL context

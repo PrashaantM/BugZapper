@@ -4,6 +4,13 @@
 
 // Various functions for helping debug WebGL apps.
 
+// Shared WebGL helper library from Chromium/Google: wraps a WebGL context
+// to validate arguments, log every GL call, and produce readable error
+// messages for debugging (WebGLDebugUtils.makeDebugContext, etc). Not
+// authored for this repo.
+// Not referenced by index.html or bug.js; this file is not currently loaded
+// or used anywhere in the game (it's only consumed by getWebGLContext() in
+// cuon-utils.js, which is itself unused here).
 WebGLDebugUtils = function() {
 
 /**

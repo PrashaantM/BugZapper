@@ -1,6 +1,13 @@
 //
 //  initShaders.js
 //
+//  Shared WebGL helper library (standard textbook boilerplate, not authored
+//  for this repo specifically). Compiles and links the vertex/fragment
+//  shader pair embedded as inline <script> elements in index.html
+//  (#vertex-shader / #fragment-shader) into a usable GL program. Loaded by
+//  index.html before bug.js; bug.js's init() calls initShaders() here to
+//  build the `program` it then uses for the whole game.
+//
 
 function initShaders( gl, vertexShaderId, fragmentShaderId )
 {

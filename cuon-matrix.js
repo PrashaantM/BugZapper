@@ -1,5 +1,13 @@
 // cuon-matrix.js (c) 2012 kanda and matsuda
-/** 
+//
+// Shared WebGL helper library from the "WebGL Programming Guide" (cuon-x.js)
+// textbook, not authored for this repo. Defines a Matrix4 class (4x4 matrix
+// with translate/rotate/scale/perspective/lookAt helpers) as an alternative
+// to the mat4()-based math in MV.js.
+// Not referenced by index.html or bug.js; this file is not currently loaded
+// or used anywhere in the game (MV.js's mat4/mult/rotateX/Y is what bug.js
+// actually uses for rotation and shader matrices).
+/**
  * This is a class treating 4x4 matrix.
  * This class contains the function that is equivalent to OpenGL matrix stack.
  * The matrix after conversion is calculated by multiplying a conversion matrix from the right.

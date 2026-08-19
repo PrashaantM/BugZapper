@@ -31,6 +31,15 @@
 
 
 /**
+ * Shared WebGL helper library (standard textbook boilerplate from Google's
+ * WebGL utils, not authored for this repo specifically). Provides
+ * WebGLUtils.setupWebGL() for creating a WebGL context with user-friendly
+ * fallback error messages, plus a requestAnimFrame shim.
+ * Loaded by index.html before initShaders.js/bug.js, but note bug.js's
+ * init() actually creates its context directly via canvas.getContext(
+ * "webgl", ...) and drives its loop with window.requestAnimationFrame
+ * rather than calling into this file, so these helpers are currently unused.
+ *
  * @fileoverview This file contains functions every webgl program will need
  * a version of one way or another.
  *

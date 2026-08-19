@@ -1,3 +1,10 @@
+// Shared WebGL helper library: an alternative initShaders() implementation
+// that loads shader source from external files via synchronous AJAX
+// (loadFileAJAX) instead of from inline <script> elements or string
+// arguments. Not authored specifically for this repo.
+// Not referenced by index.html or bug.js; this file is not currently loaded
+// or used anywhere in the game. The initShaders() actually used by bug.js
+// is the one defined in initShaders.js.
 
     // Get a file as a string using  AJAX
     function loadFileAJAX(name) {

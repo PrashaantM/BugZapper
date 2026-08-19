@@ -4,6 +4,15 @@
 //
 //////////////////////////////////////////////////////////////////////////////
 
+// Shared WebGL helper library (standard vector/matrix math utility from the
+// Angel/Shreiner WebGL textbook, not authored for this repo specifically).
+// Provides vec2/vec3/vec4, mat2/mat3/mat4 constructors, matrix/vector
+// operations (mult, rotateX/Y/Z, translate, scale, normalize, etc.), and
+// flatten() for packing arrays into the Float32Array form WebGL expects.
+// Loaded by index.html before bug.js; bug.js's geometry building and camera
+// rotation code (buildSphere, buildBacteriumCap, the drag-rotation handler
+// in init()) depend on the functions defined here.
+
 //----------------------------------------------------------------------------
 //
 //  Helper functions
